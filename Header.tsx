@@ -2,11 +2,11 @@ import React from 'react';
 
 export const Header: React.FC = () => {
   return (
-    <header className="bg-stone-900 text-white border-b border-stone-800 sticky top-0 z-40 backdrop-blur-md bg-stone-900/95 shadow-sm">
+    <header className="bg-[#0F172A] text-white border-b border-stone-800 sticky top-0 z-40 backdrop-blur-md bg-stone-900/95 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
         {/* Brand & Title */}
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center shadow-md shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr bg-[#0F172A] flex items-center justify-center shadow-md shrink-0">
             <span className="text-xl">🇮🇹</span>
           </div>
           <div>
