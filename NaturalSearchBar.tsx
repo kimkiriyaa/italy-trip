@@ -176,7 +176,7 @@ export const NaturalSearchBar: React.FC<NaturalSearchBarProps> = ({
                         {r.confirmationCode}
                       </span>
                     </div>
-                    <button className="px-2.5 py-1.5 bg-stone-900 text-white rounded-xl text-xs font-bold shrink-0 flex items-center gap-1 group-hover:bg-amber-400 group-hover:text-stone-950 transition-colors">
+                    <button className="... bg-slate-700 hover:bg-slate-800 text-white font-semibold shadow-xs ...">
                       <span>바우처</span>
                       <ArrowRight className="w-3 h-3" />
                     </button>
