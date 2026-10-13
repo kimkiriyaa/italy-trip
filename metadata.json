@@ -1,0 +1,6 @@
+{
+  "name": "이탈리아 여행 플래너 & 예약 뷰어",
+  "description": "구글 드라이브의 최근 이탈리아 여행 일정을 직관적인 테마별 뷰와 자연어 검색, 현장 예약 내역 및 바우처 통합 뷰어로 확인하는 여행 가이드",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
