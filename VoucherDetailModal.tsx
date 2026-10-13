@@ -4,483 +4,260 @@ import {
   X,
   Copy,
   Check,
-  QrCode,
-  MapPin,
   Calendar,
   Clock,
-  User,
-  ShieldCheck,
-  AlertTriangle,
-  Upload,
+  MapPin,
   ExternalLink,
-  Printer,
+  ShieldCheck,
+  AlertCircle,
+  QrCode,
+  FileText,
+  User,
+  CreditCard,
+  Train,
+  Plane,
+  Building,
   Sparkles,
+  Share2
 } from 'lucide-react';
 
 interface VoucherDetailModalProps {
   reservation: Reservation | null;
   onClose: () => void;
-  onUpdateReservation?: (updated: Reservation) => void;
 }
 
 export const VoucherDetailModal: React.FC<VoucherDetailModalProps> = ({
   reservation,
   onClose,
-  onUpdateReservation,
 }) => {
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [highBrightness, setHighBrightness] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ticket' | 'attachments'>('ticket');
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   if (!reservation) return null;
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(reservation.confirmationCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      const updatedImages = [...(reservation.attachedImages || []), dataUrl];
-      const updated: Reservation = {
-        ...reservation,
-        attachedImages: updatedImages,
-        voucherImageUrl: reservation.voucherImageUrl || dataUrl,
-      };
-      if (onUpdateReservation) {
-        onUpdateReservation(updated);
-      }
-    };
-    reader.readAsDataURL(file);
+  // 마스킹된 승객/투숙객 표기 (교육 및 포트폴리오 제출용 비식별화)
+  const getMaskedGuest = () => {
+    return '성인 2인 (TRAVELER 1, TRAVELER 2)';
   };
 
+  // 카테고리별 테마 스타일 설정
   const getCategoryTheme = () => {
     switch (reservation.category) {
       case 'flight':
         return {
-          headerBg: 'bg-gradient-to-r from-sky-700 to-indigo-800 text-white',
-          badge: 'bg-sky-100 text-sky-800',
-          typeLabel: '항공권 E-TICKET',
-        };
-      case 'hotel':
-        return {
-          headerBg: 'bg-gradient-to-r from-amber-700 to-stone-800 text-white',
-          badge: 'bg-amber-100 text-amber-800',
-          typeLabel: '호텔 바우처 HOTEL VOUCHER',
+          icon: Plane,
+          badgeBg: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+          gradientHeader: 'from-sky-950 via-slate-900 to-slate-950',
+          accentColor: 'text-sky-400',
+          borderAccent: 'border-sky-500/30',
+          tag: '항공편 (Flight)'
         };
       case 'train':
         return {
-          headerBg: 'bg-gradient-to-r from-red-700 to-rose-900 text-white',
-          badge: 'bg-rose-100 text-rose-800',
-          typeLabel: '고속열차 티켓 TRENITALIA / ITALO',
+          icon: Train,
+          badgeBg: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+          gradientHeader: 'from-rose-950 via-slate-900 to-slate-950',
+          accentColor: 'text-rose-400',
+          borderAccent: 'border-rose-500/30',
+          tag: '고속열차 (Italo)'
         };
-      case 'ticket':
+      case 'hotel':
         return {
-          headerBg: 'bg-gradient-to-r from-emerald-800 to-teal-900 text-white',
-          badge: 'bg-emerald-100 text-emerald-800',
-          typeLabel: '명소 패스트트랙 입장권 TICKET',
-        };
-      case 'dining':
-        return {
-          headerBg: 'bg-gradient-to-r from-orange-700 to-amber-900 text-white',
-          badge: 'bg-orange-100 text-orange-800',
-          typeLabel: '레스토랑 예약 CONFIRMATION',
+          icon: Building,
+          badgeBg: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+          gradientHeader: 'from-amber-950 via-slate-900 to-slate-950',
+          accentColor: 'text-amber-400',
+          borderAccent: 'border-amber-500/30',
+          tag: '호텔 & 숙소 (Hotel)'
         };
       default:
         return {
-          headerBg: 'bg-gradient-to-r from-stone-800 to-stone-900 text-white',
-          badge: 'bg-stone-100 text-stone-800',
-          typeLabel: '예약 확인서 VOUCHER',
+          icon: Sparkles,
+          badgeBg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+          gradientHeader: 'from-emerald-950 via-slate-900 to-slate-950',
+          accentColor: 'text-emerald-400',
+          borderAccent: 'border-emerald-500/30',
+          tag: '투어 & 액티비티'
         };
     }
   };
 
   const theme = getCategoryTheme();
+  const CategoryIcon = theme.icon;
+
+  // QR 데이터: 실명 패턴(SHIN/MINSOO 등)이 있으면 가상 바우처 코드로 대체 생성
+  const rawQr = reservation.qrCodeValue || reservation.confirmationCode || 'CONFIRMED-PASS';
+  const qrDisplayValue = rawQr.includes('SHIN')
+    ? 'TKT-PASS-2026-CONFIRMED-TRAVELER-ADULT2'
+    : rawQr;
+
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=4&data=${encodeURIComponent(
+    qrDisplayValue
+  )}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-sm overflow-y-auto"
+      onClick={onClose}
+    >
       <div
-        className={`relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 my-auto ${
-          highBrightness ? 'ring-4 ring-amber-400' : ''
-        }`}
+        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200/90 my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]"
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Controls Bar */}
-        <div className="flex items-center justify-between px-6 py-3.5 bg-stone-900 text-stone-300 text-xs font-medium">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="tracking-wide">인앱 현장 확인용 디지털 바우처</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setHighBrightness(!highBrightness)}
-              className={`px-2.5 py-1 rounded-full text-xs transition-colors flex items-center gap-1 ${
-                highBrightness
-                  ? 'bg-amber-400 text-stone-950 font-bold'
-                  : 'bg-stone-800 hover:bg-stone-700 text-stone-300'
-              }`}
-              title="검표 스캐너 인식을 위한 화면 강조"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {highBrightness ? '스캐너 모드 ON' : '스캐너 모드'}
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="p-1.5 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 transition-colors"
-              title="프린트 / PDF 저장"
-            >
-              <Printer className="w-4 h-4" />
-            </button>
+        {/* 1. 상단 티켓 헤더 (모바일 가로폭 대응) */}
+        <div className={`bg-gradient-to-br ${theme.gradientHeader} text-white p-4 sm:p-5 relative shrink-0`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide border ${theme.badgeBg}`}>
+                  {theme.tag}
+                </span>
+                <span className="flex items-center gap-1 text-[11px] text-emerald-300 font-medium">
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" /> 공식 확정 바우처
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug break-keep">
+                {reservation.title}
+              </h2>
+              <p className="text-xs text-slate-300 mt-0.5 truncate">
+                {reservation.provider}
+              </p>
+            </div>
+
             <button
               onClick={onClose}
-              className="p-1.5 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-200 transition-colors"
+              className="p-2 rounded-xl bg-white/10 text-slate-300 hover:text-white hover:bg-white/20 transition shrink-0"
+              aria-label="닫기"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex border-b border-stone-200 bg-stone-50 px-6 pt-2">
-          <button
-            onClick={() => setActiveTab('ticket')}
-            className={`pb-2.5 px-4 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'ticket'
-                ? 'border-stone-900 text-stone-900'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            디지털 티켓 & QR 코드
-          </button>
-          <button
-            onClick={() => setActiveTab('attachments')}
-            className={`pb-2.5 px-4 text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
-              activeTab === 'attachments'
-                ? 'border-stone-900 text-stone-900'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <span>사진/바우처 보관함</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-stone-200 text-stone-700">
-              {(reservation.attachedImages?.length || 0) + (reservation.voucherImageUrl ? 1 : 0)}
-            </span>
-          </button>
-        </div>
-
-        {activeTab === 'ticket' ? (
-          <div className="p-6 max-h-[80vh] overflow-y-auto space-y-5">
-            {/* Ticket Header Card */}
-            <div className={`p-5 rounded-2xl ${theme.headerBg} shadow-md`}>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-white/20 text-white backdrop-blur-sm mb-1.5">
-                    {theme.typeLabel}
-                  </span>
-                  <h3 className="text-xl font-bold tracking-tight text-white">{reservation.title}</h3>
-                  <p className="text-white/80 text-sm mt-0.5">{reservation.provider}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-white text-stone-900 shadow-sm">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    확정됨 (CONFIRMED)
-                  </span>
-                  <div className="text-xs text-white/70 mt-1 font-mono">{reservation.city}</div>
-                </div>
+        {/* 2. 바우처 본문 영역 (모바일 스크롤 가능, 긴 텍스트 break-all 완벽 방어) */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4">
+          
+          {/* 예약 번호 & PNR 메인 카드 */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 sm:p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                  예약 번호 / PNR 식별 코드
+                </span>
+                <span className="text-base sm:text-xl font-black font-mono text-slate-900 break-all select-all block mt-0.5">
+                  {reservation.confirmationCode}
+                </span>
               </div>
-
-              {/* Confirmation Code Strip */}
-              <div className="mt-4 pt-3.5 border-t border-white/20 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <span className="text-[11px] uppercase tracking-wider text-white/70 block">
-                    예약 번호 (CONFIRMATION CODE)
-                  </span>
-                  <span className="font-mono text-xl sm:text-2xl font-black tracking-wider text-amber-200">
-                    {reservation.confirmationCode}
-                  </span>
-                </div>
-                <button
-                  onClick={handleCopyCode}
-                  className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-medium backdrop-blur-sm transition-colors flex items-center gap-1.5"
-                >
-                  {copiedCode ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-300" />
-                      <span>복사 완료!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>예약번호 복사</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {reservation.secondaryCode && (
-                <div className="mt-2 text-xs text-white/70 font-mono">
-                  부가 참조번호: {reservation.secondaryCode}
-                </div>
-              )}
-            </div>
-
-            {/* QR / Barcode High Visibility Box */}
-            <div className="bg-stone-50 border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center">
-              <div className="inline-block p-4 bg-white rounded-2xl shadow-lg border border-stone-200">
-                {/* SVG High Resolution QR Code Simulation */}
-                <div className="w-48 h-48 mx-auto flex flex-col items-center justify-center bg-white p-2 border border-stone-100 rounded-xl relative group">
-                  <svg className="w-44 h-44 text-stone-900" viewBox="0 0 100 100" fill="currentColor">
-                    {/* Outer corners */}
-                    <rect x="5" y="5" width="28" height="28" rx="4" fill="currentColor" />
-                    <rect x="9" y="9" width="20" height="20" rx="2" fill="white" />
-                    <rect x="13" y="13" width="12" height="12" rx="1" fill="currentColor" />
-
-                    <rect x="67" y="5" width="28" height="28" rx="4" fill="currentColor" />
-                    <rect x="71" y="9" width="20" height="20" rx="2" fill="white" />
-                    <rect x="75" y="13" width="12" height="12" rx="1" fill="currentColor" />
-
-                    <rect x="5" y="67" width="28" height="28" rx="4" fill="currentColor" />
-                    <rect x="9" y="71" width="20" height="20" rx="2" fill="white" />
-                    <rect x="13" y="75" width="12" height="12" rx="1" fill="currentColor" />
-
-                    {/* QR grid details */}
-                    <rect x="38" y="8" width="8" height="8" fill="currentColor" />
-                    <rect x="50" y="8" width="6" height="6" fill="currentColor" />
-                    <rect x="38" y="20" width="12" height="6" fill="currentColor" />
-                    <rect x="54" y="20" width="8" height="8" fill="currentColor" />
-                    <rect x="38" y="32" width="6" height="12" fill="currentColor" />
-                    <rect x="48" y="32" width="16" height="6" fill="currentColor" />
-
-                    <rect x="8" y="38" width="10" height="6" fill="currentColor" />
-                    <rect x="22" y="38" width="8" height="8" fill="currentColor" />
-                    <rect x="8" y="48" width="12" height="12" fill="currentColor" />
-                    <rect x="24" y="50" width="6" height="10" fill="currentColor" />
-
-                    <rect x="68" y="38" width="14" height="6" fill="currentColor" />
-                    <rect x="86" y="38" width="6" height="14" fill="currentColor" />
-                    <rect x="70" y="48" width="8" height="12" fill="currentColor" />
-                    <rect x="82" y="56" width="10" height="6" fill="currentColor" />
-
-                    <rect x="38" y="68" width="8" height="12" fill="currentColor" />
-                    <rect x="50" y="68" width="12" height="6" fill="currentColor" />
-                    <rect x="42" y="84" width="20" height="8" fill="currentColor" />
-                    <rect x="68" y="72" width="12" height="8" fill="currentColor" />
-                    <rect x="84" y="72" width="8" height="14" fill="currentColor" />
-                    <rect x="72" y="84" width="8" height="8" fill="currentColor" />
-                  </svg>
-                  <div className="absolute inset-0 bg-stone-900/5 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-xl">
-                    <span className="px-3 py-1 bg-stone-900 text-white text-xs rounded-full shadow-lg">
-                      스캔 가능 상태
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-2 font-mono text-[11px] text-stone-500 break-all max-w-xs mx-auto">
-                  {reservation.qrCodeValue}
-                </div>
-              </div>
-
-              {/* Barcode line simulation */}
-              {reservation.barcodeValue && (
-                <div className="mt-4 pt-4 border-t border-stone-200">
-                  <div className="flex items-center justify-center gap-1 h-12 w-64 mx-auto bg-white p-2 rounded-lg border border-stone-200">
-                    {Array.from({ length: 42 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="h-full bg-stone-900"
-                        style={{
-                          width: `${(i % 3) + 1.5}px`,
-                          opacity: i % 5 === 0 ? 0.3 : 1,
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-1 font-mono text-xs text-stone-600">
-                    *{reservation.barcodeValue}*
-                  </div>
-                </div>
-              )}
-              <p className="mt-3 text-xs text-stone-600">
-                💡 <strong>현장 팁:</strong> 개찰구 또는 박물관 입장 시 이 화면을 그대로 검표원이나 자동 스캐너에 태그하세요.
-              </p>
-            </div>
-
-            {/* Detailed Parameters Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-4 rounded-2xl border border-stone-200 text-sm">
-              <div className="flex items-start gap-2.5">
-                <Calendar className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-xs text-stone-600 block">이용 날짜 (Date)</span>
-                  <span className="font-semibold text-stone-800">{reservation.date}</span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <Clock className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-xs text-stone-600 block">이용 시간 / 슬롯 (Time)</span>
-                  <span className="font-semibold text-stone-800">{reservation.time}</span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <User className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-xs text-stone-600 block">예약자 성명 (Passenger/Guest)</span>
-                  <span className="font-semibold text-stone-800">{reservation.passengerOrGuest}</span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-xs text-stone-600 block">장소 / 위치 (Location)</span>
-                  <span className="font-semibold text-stone-800">{reservation.location}</span>
-                </div>
-              </div>
-
-              {/* Dynamic properties based on category */}
-              {reservation.details.carriage && (
-                <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 col-span-1">
-                  <span className="text-xs text-rose-600 font-medium block">기차 호차 (Carrozza)</span>
-                  <span className="text-base font-bold text-rose-950">{reservation.details.carriage}</span>
-                </div>
-              )}
-
-              {reservation.details.seat && (
-                <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 col-span-1">
-                  <span className="text-xs text-rose-600 font-medium block">좌석 번호 (Posto / Seat)</span>
-                  <span className="text-base font-bold text-rose-950">{reservation.details.seat}</span>
-                </div>
-              )}
-
-              {reservation.details.platform && (
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 col-span-1">
-                  <span className="text-xs text-amber-700 font-medium block">탑승 플랫폼 (Binario)</span>
-                  <span className="text-sm font-bold text-amber-950">{reservation.details.platform}</span>
-                </div>
-              )}
-
-              {reservation.details.roomType && (
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 col-span-2">
-                  <span className="text-xs text-amber-700 font-medium block">객실 타입 (Room Type)</span>
-                  <span className="text-sm font-bold text-amber-950">{reservation.details.roomType}</span>
-                </div>
-              )}
-
-              {reservation.details.entranceGate && (
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 col-span-2">
-                  <span className="text-xs text-emerald-700 font-medium block">전용 입장 게이트 (Entrance Gate)</span>
-                  <span className="text-sm font-bold text-emerald-950">{reservation.details.entranceGate}</span>
-                </div>
-              )}
-
-              {reservation.details.price && (
-                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 col-span-1 sm:col-span-2 flex justify-between items-center">
-                  <span className="text-xs text-stone-600">결제 완료 금액 (Paid)</span>
-                  <span className="text-base font-bold text-stone-900">{reservation.details.price}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Dress code & Warnings */}
-            {reservation.details.dressCode && (
-              <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="font-semibold block text-amber-950">복장 규정 (Dress Code):</strong>
-                  {reservation.details.dressCode}
-                </div>
-              </div>
-            )}
-
-            {/* Notes */}
-            {reservation.notes && (
-              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 text-xs text-stone-600 space-y-1">
-                <span className="font-semibold text-stone-800 block">📌 참고 사항 및 유의점</span>
-                <p className="leading-relaxed">{reservation.notes}</p>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Attachments & Saved Photos tab */
-          <div className="p-6 max-h-[80vh] overflow-y-auto space-y-6">
-            <div className="bg-stone-50 border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center">
-              <Upload className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-              <h4 className="text-sm font-bold text-stone-800">예약증 사진 또는 PDF 캡처 업로드</h4>
-              <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
-                모바일 갤러리나 이메일에서 캡처한 바우처 사진을 추가하면, 데이터 통신이 끊겨도 이 앱 내에서 즉시 열람할 수 있습니다.
-              </p>
-              <label className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 text-white text-xs font-semibold hover:bg-stone-800 cursor-pointer transition-colors">
-                <Upload className="w-3.5 h-3.5" />
-                사진 파일 선택하기
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {/* Image Gallery */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-bold text-stone-900">저장된 바우처 이미지 목록</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {reservation.voucherImageUrl && (
-                  <div className="relative rounded-2xl overflow-hidden border border-stone-200 shadow-sm group">
-                    <img
-                      src={reservation.voucherImageUrl}
-                      alt="Primary Voucher"
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
-                      <span className="text-white text-xs font-medium">기본 티켓 / 확인 이미지</span>
-                    </div>
-                  </div>
+              <button
+                onClick={() => handleCopy(reservation.confirmationCode, 'pnr')}
+                className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
+                  copiedKey === 'pnr'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-800 text-white hover:bg-slate-700'
+                }`}
+              >
+                {copiedKey === 'pnr' ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" /> 복사됨
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" /> 복사
+                  </>
                 )}
-                {reservation.attachedImages?.map((imgUrl, idx) => (
-                  <div key={idx} className="relative rounded-2xl overflow-hidden border border-stone-200 shadow-sm group">
-                    <img
-                      src={imgUrl}
-                      alt={`Attached Voucher ${idx + 1}`}
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
-                      <span className="text-white text-xs font-medium">첨부 사진 #{idx + 1}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {!reservation.voucherImageUrl && (!reservation.attachedImages || reservation.attachedImages.length === 0) && (
-                <div className="text-center py-8 text-stone-400 text-xs">
-                  아직 첨부된 사진이 없습니다. 위 업로드 버튼으로 캡처 사진을 추가해보세요.
-                </div>
-              )}
+              </button>
             </div>
-          </div>
-        )}
 
-        {/* Footer actions */}
-        <div className="p-4 bg-stone-100 border-t border-stone-200 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold transition-colors"
-          >
-            닫기
-          </button>
-          <button
-            onClick={handleCopyCode}
-            className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
-          >
-            {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>예약번호({reservation.confirmationCode}) 복사</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+            {reservation.secondaryCode && (
+              <div className="mt-2.5 pt-2.5 border-t border-slate-200/70 text-xs text-slate-600 flex items-center justify-between gap-2">
+                <span className="text-slate-500 shrink-0">보조 정보 / PIN:</span>
+                <span className="font-mono font-bold text-slate-800 break-all text-right">
+                  {reservation.secondaryCode.includes('신민수')
+                    ? 'TRAVELER 2인 확정'
+                    : reservation.secondaryCode}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* QR 코드 스캔 영역 (모바일 화면에 맞춰 유연하게 리사이징) */}
+          <div className="bg-slate-900 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center text-center shadow-inner">
+            <div className="bg-white p-3 rounded-2xl shadow-md border border-slate-100 flex items-center justify-center max-w-full">
+              <img
+                src={qrImageUrl}
+                alt="Voucher QR Code"
+                className="w-36 h-36 sm:w-44 sm:h-44 object-contain mx-auto"
+                loading="eager"
+              />
+            </div>
+            
+            <div className="mt-3 text-center max-w-full px-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                <QrCode className="w-3.5 h-3.5 shrink-0" /> 현장 검표원 스캔 전용 QR
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 font-mono break-all leading-tight">
+                {qrDisplayValue}
+              </p>
+            </div>
+
+            {/* 바코드 표시 (존재할 경우) */}
+            {reservation.barcodeValue && (
+              <div className="mt-3 pt-3 border-t border-slate-800 w-full flex flex-col items-center">
+                <div className="bg-white px-4 py-2 rounded-lg max-w-[240px] w-full flex flex-col items-center">
+                  <div className="h-7 w-full flex items-center justify-center gap-0.5 overflow-hidden">
+                    {/* 심플 CSS 가상 바코드 패턴 */}
+                    <div className="h-full w-1 bg-black"></div>
+                    <div className="h-full w-0.5 bg-black"></div>
+                    <div className="h-full w-1.5 bg-black"></div>
+                    <div className="h-full w-0.5 bg-black"></div>
+                    <div className="h-full w-2 bg-black"></div>
+                    <div className="h-full w-0.5 bg-black"></div>
+                    <div className="h-full w-1 bg-black"></div>
+                    <div className="h-full w-1.5 bg-black"></div>
+                    <div className="h-full w-0.5 bg-black"></div>
+                    <div className="h-full w-2 bg-black"></div>
+                    <div className="h-full w-1 bg-black"></div>
+                    <div className="h-full w-0.5 bg-black"></div>
+                    <div className="h-full w-1.5 bg-black"></div>
+                  </div>
+                  <span className="font-mono text-[10px] text-slate-800 tracking-widest mt-1 block">
+                    {reservation.barcodeValue}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. 예약 상세 정보 목록 (flex-col 반응형으로 텍스트 겹침 차단) */}
+          <div className="space-y-2 text-xs sm:text-sm">
+            {/* 일시 */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <div className="flex items-center gap-2 text-slate-500 shrink-0">
+                <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="font-medium">일정 및 날짜</span>
+              </div>
+              <span className="font-bold text-slate-900 text-left sm:text-right break-words">
+                {reservation.date}
+              </span>
+            </div>
+
+            {/* 시간 */}
+            {reservation.time && (
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                <div className="flex items-center gap-2 text-slate-500 shrink-0">
+                  <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span className="font-medium">이용 / 출발 시각</span>
+                </div>
+                <span className="font-semibold text-slate-900 text-left sm:text-right break-words">
+                  {reservation.time}
+                </span>
+              </div>
+            )}
+
+            {/* 위치/장소 */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
