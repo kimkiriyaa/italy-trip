@@ -74,7 +74,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-100/70 text-stone-900 font-sans antialiased selection:bg-amber-300 selection:text-stone-950 pb-16">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased selection:bg-amber-300 selection:text-stone-950 pb-16">
       {/* Top Navigation & Brand Header (로그인 버튼 제거된 깔끔한 헤더) */}
       <Header />
 
