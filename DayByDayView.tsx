@@ -96,9 +96,8 @@ export const DayByDayView: React.FC<DayByDayViewProps> = ({
                 onClick={() => setActiveDayIndex(idx)}
                 className={`px-4 py-3 rounded-2xl transition-all text-left flex flex-col justify-between min-w-[130px] border ${
                   isSelected
-                    ? 'bg-stone-900 text-white border-stone-900 shadow-lg scale-102'
-                    : 'bg-stone-50 text-stone-700 hover:bg-stone-100 border-stone-200'
-                }`}
+  ? 'bg-slate-700 text-white border-slate-700 shadow-md'
+  : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}
               >
                 <div className="flex items-center justify-between w-full mb-1">
                   <span
